@@ -1,6 +1,6 @@
 open Lwt.Infix
 
-(* Helper function to connect to the server at a given hostname (or IP) and port *)
+(* Connect to a remote host on [port]. *)
 let connect_to_server host port =
   let sock = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
   Lwt_unix.gethostbyname host >>= fun he ->
@@ -24,7 +24,7 @@ let main_client host port =
   let rec recv_loop () =
     Lwt_io.read_line_opt in_chan >>= function
     | None ->
-      Lwt_io.printl "Server closed the connection." 
+      Lwt_io.printl "Server closed the connection."
     | Some line ->
       (match String.split_on_char ' ' line with
        | "MSG" :: id_str :: rest ->
@@ -40,8 +40,7 @@ let main_client host port =
             let id = int_of_string id_str in
             match Hashtbl.find_opt pending id with
             | Some t_sent ->
-              let t_now = Unix.gettimeofday () in
-              let rtt = (t_now -. t_sent) *. 1000.0 in
+              let rtt = (Unix.gettimeofday () -. t_sent) *. 1000.0 in
               Hashtbl.remove pending id;
               Lwt_io.printf "Received ACK for id=%d. Roundtrip: %.2f ms\n%!"
                 id rtt
@@ -57,8 +56,7 @@ let main_client host port =
   let rec send_loop () =
     Lwt_io.read_line_opt Lwt_io.stdin >>= function
     | None ->
-      Lwt_io.printl "Goodbye." >>= fun () ->
-      Lwt.return_unit
+      Lwt_io.printl "Client console closed."
     | Some line ->
       if line = "exit" then (
         Lwt_io.printl "Exiting chat..." >>= fun () ->
@@ -76,9 +74,6 @@ let main_client host port =
   Lwt.pick [recv_loop (); send_loop ()]
 
 let () =
-  (* Expect server hostname/IP and port as arguments, e.g.:
-     dune exec ./client -- 127.0.0.1 9000
-  *)
   match Sys.argv with
   | [| _; host; port_str |] ->
     let port = int_of_string port_str in

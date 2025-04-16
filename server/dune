@@ -1,0 +1,4 @@
+(executable
+ (name server)
+ (libraries lwt.unix)
+ (preprocess (pps lwt_ppx)))
